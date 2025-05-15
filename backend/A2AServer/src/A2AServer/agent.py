@@ -297,7 +297,7 @@ class BasicAgent:
 
     async def stream(self, query: str, sessionId: str) -> AsyncIterable[dict[str, Any]]:
         """Stream updates from the MCP agent.
-        # sessionId作为知识库的关联信息, 重新初始化知识库的mcpClient
+        # sessionId作为知识库的关联信息,不推荐，重新初始化知识库的mcpClient
         """
         print(f"问题: {query}的sessionId为： {sessionId}")
         try:
