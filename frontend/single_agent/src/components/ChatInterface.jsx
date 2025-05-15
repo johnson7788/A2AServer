@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import FormComponent from './FormDisplay';
 import { sendTaskStreaming, sendTaskNonStreaming, getTaskResult } from '../services/a2aApiService';
+
 
 function ChatInterface({ agentCard }) {
   const [prompt, setPrompt] = useState('');
@@ -27,12 +29,103 @@ function ChatInterface({ agentCard }) {
     }));
   };
 
+  const handleFormSubmit = async (messageId, formData) => {
+    const taskId = uuidv4();
+    const agentEndpointUrl = agentCard.agentEndpointUrl;
+    const payload = {
+      id: taskId,
+      sessionId,
+      acceptedOutputModes: ['text', 'data'],
+      message: {
+        role: 'user',
+        parts: [{ type: 'text', text: JSON.stringify(formData) }],
+      },
+    };
+
+    setIsSending(true);
+    setError(null);
+
+    const userMessage = { id: uuidv4(), type: 'user', text: JSON.stringify(formData) };
+    const agentMessage = { id: uuidv4(), type: 'agent', text: '', isStreaming: true, thinking: [] };
+    setMessages((prev) => [...prev, userMessage, agentMessage]);
+    setThinkingMessages((prev) => ({ ...prev, [agentMessage.id]: [] }));
+    setIsThinkingCollapsed((prev) => ({ ...prev, [agentMessage.id]: false }));
+
+    currentStreamingMessageIdRef.current = agentMessage.id;
+
+    abortStreamingRef.current = sendTaskStreaming(
+      agentEndpointUrl,
+      payload,
+      (streamEvent) => {
+        console.log('接收到流事件：', streamEvent);
+
+        if (streamEvent.result?.status?.state === 'working' && streamEvent.result?.status?.message) {
+          streamEvent.result.status.message.parts.forEach((part) => {
+            if (part.type === 'text' && part.text) {
+              setThinkingMessages((prev) => ({
+                ...prev,
+                [agentMessage.id]: [...(prev[agentMessage.id] || []), part.text],
+              }));
+            }
+          });
+        }
+
+        if (streamEvent.result?.artifact) {
+          const { parts, append } = streamEvent.result.artifact;
+          parts.forEach((part) => {
+            if (part.type === 'text' && part.text) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === agentMessage.id
+                    ? {
+                        ...msg,
+                        text: append ? msg.text + part.text : part.text,
+                        isStreaming: !streamEvent.result.artifact.lastChunk,
+                      }
+                    : msg
+                )
+              );
+            }
+          });
+        }
+
+        if (streamEvent.result?.final || streamEvent.result?.status?.state === 'completed') {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === agentMessage.id ? { ...msg, isStreaming: false } : msg
+            )
+          );
+          setIsSending(false);
+        }
+      },
+      (streamError) => {
+        console.error('流式传输错误：', streamError);
+        setError(`流式传输错误：${streamError.message}`);
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === agentMessage.id
+              ? { ...msg, text: `错误：${streamError.message}`, isStreaming: false }
+              : msg
+          )
+        );
+        setIsSending(false);
+      }
+    );
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!prompt.trim() || !agentCard || !sessionId) return;
 
     const userMessage = { id: uuidv4(), type: 'user', text: prompt };
-    const agentMessage = { id: uuidv4(), type: 'agent', text: '', isStreaming: true, thinking: [] };
+    const agentMessage = {
+      id: uuidv4(),
+      type: 'agent',
+      text: '',
+      isStreaming: true,
+      thinking: [],
+      form: null,
+    };
     setMessages((prev) => [...prev, userMessage, agentMessage]);
     setThinkingMessages((prev) => ({ ...prev, [agentMessage.id]: [] }));
     setIsThinkingCollapsed((prev) => ({ ...prev, [agentMessage.id]: false }));
@@ -46,7 +139,7 @@ function ChatInterface({ agentCard }) {
     const payload = {
       id: taskId,
       sessionId,
-      acceptedOutputModes: ['text'],
+      acceptedOutputModes: ['text', 'data'],
       message: {
         role: 'user',
         parts: [{ type: 'text', text: prompt }],
@@ -62,7 +155,6 @@ function ChatInterface({ agentCard }) {
         (streamEvent) => {
           console.log('接收到流事件：', streamEvent);
 
-          // 处理思考过程（status.message）
           if (streamEvent.result?.status?.state === 'working' && streamEvent.result?.status?.message) {
             streamEvent.result.status.message.parts.forEach((part) => {
               if (part.type === 'text' && part.text) {
@@ -74,7 +166,6 @@ function ChatInterface({ agentCard }) {
             });
           }
 
-          // 处理最终答案（artifact）
           if (streamEvent.result?.artifact) {
             const { parts, append } = streamEvent.result.artifact;
             parts.forEach((part) => {
@@ -90,12 +181,23 @@ function ChatInterface({ agentCard }) {
                       : msg
                   )
                 );
+              } else if (part.type === 'data' && part.data?.type === 'form') {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === agentMessage.id
+                      ? { ...msg, form: part.data, isStreaming: false }
+                      : msg
+                  )
+                );
               }
             });
           }
 
-          // 处理任务完成
-          if (streamEvent.result?.final || streamEvent.result?.status?.state === 'completed') {
+          if (
+            streamEvent.result?.final ||
+            streamEvent.result?.status?.state === 'completed' ||
+            streamEvent.result?.status?.state === 'input-required'
+          ) {
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.id === agentMessage.id ? { ...msg, isStreaming: false } : msg
@@ -120,22 +222,32 @@ function ChatInterface({ agentCard }) {
     } else {
       try {
         const initialResponse = await sendTaskNonStreaming(agentEndpointUrl, payload);
-        let agentResponseText = '处理中...';
+        let agentResponse = { text: '处理中...', form: null };
 
         if (initialResponse.error) {
           throw new Error(`Agent 错误：${initialResponse.error.message}`);
         }
 
         if (initialResponse.result?.status?.state === 'completed') {
-          agentResponseText =
-            initialResponse.result.status.message?.parts.find((p) => p.type === 'text')?.text ||
-            '无文本内容。';
+          const textPart = initialResponse.result.status.message?.parts.find(
+            (p) => p.type === 'text'
+          );
+          const formPart = initialResponse.result.artifact?.parts.find(
+            (p) => p.type === 'data' && p.data?.type === 'form'
+          );
+          agentResponse.text = textPart?.text || '无文本内容。';
+          agentResponse.form = formPart?.data || null;
         } else {
           const finalTaskResponse = await getTaskResult(agentEndpointUrl, taskId);
-          if (finalTaskResponse.result?.status?.message) {
-            agentResponseText =
-              finalTaskResponse.result.status.message.parts.find((p) => p.type === 'text')?.text ||
-              '最终结果无文本。';
+          if (finalTaskResponse.result?.status?.message || finalTaskResponse.result?.artifact) {
+            const textPart = finalTaskResponse.result.status.message?.parts.find(
+              (p) => p.type === 'text'
+            );
+            const formPart = finalTaskResponse.result.artifact?.parts.find(
+              (p) => p.type === 'data' && p.data?.type === 'form'
+            );
+            agentResponse.text = textPart?.text || '最终结果无文本。';
+            agentResponse.form = formPart?.data || null;
           } else if (finalTaskResponse.error) {
             throw new Error(`拉取任务失败：${finalTaskResponse.error.message}`);
           }
@@ -143,7 +255,9 @@ function ChatInterface({ agentCard }) {
 
         setMessages((prev) =>
           prev.map((msg) =>
-            msg.id === agentMessage.id ? { ...msg, text: agentResponseText, isStreaming: false } : msg
+            msg.id === agentMessage.id
+              ? { ...msg, text: agentResponse.text, form: agentResponse.form, isStreaming: false }
+              : msg
           )
         );
       } catch (err) {
@@ -254,19 +368,28 @@ function ChatInterface({ agentCard }) {
                   </button>
                   {!isThinkingCollapsed[msg.id] && (
                     <div className="mt-2 p-3 bg-gray-100 rounded-lg text-sm text-gray-600">
-                    <div className="mt-2 p-3 bg-gray-100 rounded-lg text-sm text-gray-600">
                       <p className="whitespace-pre-wrap">
-                      {thinkingMessages[msg.id]?.join('').replace(/\\\\n/g, '\\n').replace(/\\n/g, '\n')}
+                        {thinkingMessages[msg.id]
+                          ?.join('')
+                          .replace(/\\\\n/g, '\\n')
+                          .replace(/\\n/g, '\n')}
                       </p>
-                    </div>
                     </div>
                   )}
                 </div>
               )}
-              <p className="whitespace-pre-wrap text-base">
-                {msg.text || (msg.isStreaming && !msg.text ? 'Thinking...' : '')}
-                {msg.isStreaming && <span className="animate-pulse">▍</span>}
-              </p>
+              {msg.form ? (
+                <FormComponent
+                  formData={msg.form}
+                  onSubmit={handleFormSubmit}
+                  messageId={msg.id}
+                />
+              ) : (
+                <p className="whitespace-pre-wrap text-base">
+                  {msg.text || (msg.isStreaming && !msg.text ? 'Thinking...' : '')}
+                  {msg.isStreaming && <span className="animate-pulse">▍</span>}
+                </p>
+              )}
             </div>
             {msg.type === 'user' && (
               <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center ml-3">
