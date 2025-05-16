@@ -4,14 +4,14 @@
 # @File  : form_tool.py
 # @Author: johnson
 # @Contact : github: johnson7788
-# @Desc  : eg: 搜索工具
+# @Desc  : eg: 发票工具
 import time
 import json
 from fastmcp import FastMCP
 from typing import Any, Optional
 import random
 
-mcp = FastMCP("搜索工具")
+mcp = FastMCP("发票工具")
 
 @mcp.tool()
 def create_request_form(
