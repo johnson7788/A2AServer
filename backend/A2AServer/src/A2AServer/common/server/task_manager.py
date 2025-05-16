@@ -88,7 +88,7 @@ class InMemoryTaskManager(TaskManager):
         task_query_params: TaskQueryParams = request.params
 
         async with self.lock:
-            task = self.tasks.get(task_query_params.id)
+            task = self.tasks.get(task_query_params.sessionId, {}).get(task_query_params.id)
             if task is None:
                 return GetTaskResponse(id=request.id, error=TaskNotFoundError())
 
@@ -183,9 +183,9 @@ class InMemoryTaskManager(TaskManager):
         return GetTaskPushNotificationResponse(id=request.id, result=TaskPushNotificationConfig(id=task_params.id, pushNotificationConfig=notification_info))
 
     async def upsert_task(self, task_send_params: TaskSendParams) -> Task:
-        logger.info(f"Upserting task {task_send_params.id}")
+        logger.info(f"更新任务: {task_send_params.sessionId}")
         async with self.lock:
-            task = self.tasks.get(task_send_params.id)
+            task = self.tasks.get(task_send_params.sessionId)
             if task is None:
                 task = Task(
                     id=task_send_params.id,
@@ -194,7 +194,7 @@ class InMemoryTaskManager(TaskManager):
                     status=TaskStatus(state=TaskState.SUBMITTED),
                     history=[task_send_params.message],
                 )
-                self.tasks[task_send_params.id] = task
+                self.tasks[task_send_params.sessionId] = task
             else:
                 task.history.append(task_send_params.message)
 
@@ -206,11 +206,21 @@ class InMemoryTaskManager(TaskManager):
         return new_not_implemented_error(request.id)
 
     async def update_store(
-        self, task_id: str, status: TaskStatus, artifacts: list[Artifact]
+        self, session_id:str, task_id: str, status: TaskStatus, artifacts: list[Artifact]
     ) -> Task:
         async with self.lock:
             try:
-                task = self.tasks[task_id]
+                # Ensure session_id exists in self.tasks
+                if task_id not in self.tasks[session_id]:
+                    self.tasks[session_id][task_id] = Task(
+                        id=task_id,
+                        sessionId=session_id,
+                        status=status,
+                        history=[],
+                        artifacts=None,
+                    )
+                else:
+                    task = self.tasks[session_id][task_id]
             except KeyError:
                 logger.error(f"Task {task_id} not found for updating the task")
                 raise ValueError(f"Task {task_id} not found")

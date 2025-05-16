@@ -94,11 +94,11 @@ class AgentTaskManager(InMemoryTaskManager):
         await self.upsert_task(request.params)
         # Update task store to WORKING state (return value not used)
         await self.update_store(
-            request.params.id, TaskStatus(state=TaskState.WORKING), None
+            request.params.sessionId, request.params.id, TaskStatus(state=TaskState.WORKING), None
         )
 
         task_send_params: TaskSendParams = request.params
-        query = self._get_user_query(task_send_params)
+        query, text_history = self._get_user_query(task_send_params)
 
         try:
             agent_response = self.agent.invoke(query, task_send_params.sessionId)
@@ -157,7 +157,7 @@ class AgentTaskManager(InMemoryTaskManager):
             artifact = Artifact(parts=parts)
         # Update task store and get result for response
         updated_task = await self.update_store(
-            task_id, task_status, None if artifact is None else [artifact]
+            task_send_params.sessionId,task_id, task_status, None if artifact is None else [artifact]
         )
         # Use the updated task to create a response with correct history
         task_result = self.append_task_history(updated_task, history_length)
@@ -170,12 +170,12 @@ class AgentTaskManager(InMemoryTaskManager):
         Handle the 'tasks/sendSubscribe' JSON-RPC method for streaming responses.
         """
         task_send_params: TaskSendParams = request.params
-        query = self._get_user_query(task_send_params)
+        query, text_history = self._get_user_query(task_send_params)
         logger.info(f"发送过来的请求是 {query}, 参数是 {task_send_params}")
         is_first_token = True
         artifacts = []
         try:
-            async for item in self.agent.stream(query, task_send_params.sessionId):
+            async for item in self.agent.stream(query, text_history, task_send_params.sessionId):
                 logger.info("返回的item: ", item)
                 if item.get("type") and item["type"] == "tool_call":
                     content = decode_tool_calls_to_string(item["content"])
@@ -278,7 +278,7 @@ class AgentTaskManager(InMemoryTaskManager):
                 task_status = TaskStatus(
                     state=TaskState.WORKING,
                 )
-            await self.update_store(task_send_params.id, task_status, artifacts)
+            await self.update_store(task_send_params.sessionId, task_send_params.id, task_status, artifacts)
             task_update_event = TaskStatusUpdateEvent(
                 id=task_send_params.id,
                 status=task_status,
@@ -352,4 +352,18 @@ class AgentTaskManager(InMemoryTaskManager):
         part = task_send_params.message.parts[0]
         if not isinstance(part, TextPart):
             raise ValueError("Only text parts are supported")
-        return part.text
+        # 用户的问题
+        user_query = part.text
+        # 获取session id
+        session_id = task_send_params.sessionId
+        # 获取历史记录
+        history = self.tasks[session_id].history
+        text_history = []
+        for i, item in enumerate(history):
+            role = item.role
+            content = item.parts[0].text
+            text_history.append({"role": role, "content": content})
+        # 不要最后一条，因为最后一条是刚刚添加的
+        text_history = text_history[:-1]
+        logger.info(f"文本历史记录是: {text_history}， 用户的问题是: {user_query}")
+        return user_query, text_history
