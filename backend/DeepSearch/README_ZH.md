@@ -107,7 +107,10 @@ python client.py --agent http://localhost:10004
 ```bash
 uv run --with fastmcp fastmcp run mcpserver/search_tool.py
 ```
-
+或者使用
+```bash
+bash test_mcp_server.sh
+```
 ---
 
 ## 📖 命令行帮助

@@ -86,6 +86,10 @@ python main.py --port 10003
 uv run --with fastmcp fastmcp run mcpserver/Simulate_Factory_Profit.py
 uv run --with fastmcp fastmcp run mcpserver/Simulate_LNG_Price.py.py
 ```
+或者使用
+```bash
+bash test_mcp_server.sh
+```
 
 ## 🧪 UI测试
 ```bash

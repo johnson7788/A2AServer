@@ -93,6 +93,10 @@ python client.py --agent http://localhost:10005
 ```bash
 uv run --with fastmcp fastmcp run mcpserver/rag_tool.py
 ```
+或者使用
+```bash
+bash test_mcp_server.sh
+```
 
 ---
 
