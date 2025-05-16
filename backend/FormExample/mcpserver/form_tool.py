@@ -80,8 +80,7 @@ def return_voice_form(
             },
             'required': list(form_request.keys()),
         },
-        'form_data': form_request,
-        'instructions': instructions,
+        'form_data': form_request
     }
     return json.dumps(form_dict)
 
@@ -95,9 +94,13 @@ def submit_form(form_response: dict[str, Any]) -> str:
     """
     if isinstance(form_response, str):
         form_response = json.loads(form_response)
-    print("表单已经提交成功了, {for}")
+    print(f"表单已经提交成功了, {form_response}")
     return 'Form submitted successfully'
 
 if __name__ == '__main__':
-    result = search_internet(query="小米新闻")
+    result = create_request_form(date='2025-05-01',amount='10',purpose='午饭')
+    print(result)
+    result = return_voice_form(form_request={'amount': '10', 'date': '2025-05-01', 'purpose': '午饭', 'request_id': 'request_id_7016809'})
+    print(result)
+    result = submit_form(form_response={'amount': '10', 'date': '2025-05-01', 'purpose': '午饭', 'request_id': 'request_id_7016809'})
     print(result)

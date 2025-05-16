@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "SearchTool": {
+    "receiptTool": {
       "command": "uv",
       "args": [
         "run",
