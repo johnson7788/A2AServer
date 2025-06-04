@@ -17,6 +17,7 @@ dependencies = [
     "zhipuai",
     "cachetools",
     "asyncclick",
+    "lmstudio",
     "google-genai>=1.10.0",
 ]
 
