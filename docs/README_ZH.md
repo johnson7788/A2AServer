@@ -45,6 +45,7 @@ backend/DeepSearch/mcpserver/mcp.log中显示了详细的使用日志。
 1. Deepseek官方Deepseek-R1模型不支持函数调用，因此使用Deepseek的R1模型会报错。但是火山引擎的deepseek-r1模型可以支持函数调用和思考，推荐。
 2. 保持传入Agent的会话的session_id的唯一，这是必须的。
 3. Agent Card中的url是最终对外提供的接口，当前端访问时，会访问这个Agent Card中的地址，可以按需传入。
+4. DeepSeek V3的函数名称不支持中文, ByteDance的Deepseek R1函数支持中文
 
 # Bug 修复
 1. backend/A2AServer/src/A2AServer/mcp_client/client.py, 修复MCP客端建立session后的self.responses直不删除，导致mcpserver的数据越来越多卡死的问题，添加了时间戳控制收到的数据

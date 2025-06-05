@@ -15,7 +15,7 @@
         ```
 2. **配置模型：**
     * cp env_template.txt 为 .env 
-    * 修改/hostAgentAPI/hosts/multiagent/agent.py中的模型，
+    * 修改/hostAgentAPI/hosts/multiagent/host_agent.py中的模型，
     * model=LiteLlm(model="deepseek/deepseek-chat", api_key="xxx", api_base="")
 
 
