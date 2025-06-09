@@ -162,5 +162,5 @@ if __name__ == "__main__":
     async def main():
         session_id = time.strftime("%Y%m%d%H%M%S",time.localtime())
         wrapper = A2AClientWrapper(session_id=session_id, agent_url="http://localhost:10006")
-        await wrapper.run("乳腺癌的治疗方案有哪些?")
+        await wrapper.run("保障劳动者加班的法律条文有哪些?")
     asyncio.run(main())
