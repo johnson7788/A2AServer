@@ -85,7 +85,15 @@ class SSEMCPClient:
                 logger.info(f"开始使用SSE MCP协议调用工具，tool_name: {tool_name}, arguments: {arguments}")
                 response = await self.session.call_tool(tool_name, arguments, read_timeout_seconds=timedelta(seconds=6))
                 # 将 pydantic 模型转换为字典格式
-                return response.model_dump() if hasattr(response, 'model_dump') else response
+                response_data = response.model_dump() if hasattr(response, 'model_dump') else response
+                if response_data.get("isError"):
+                    # 说明发生了错误，那么进行重试
+                    logger.error("你的MCP的函数没有进行try和except封装，调用工具时，工具出现了异常，等待1秒后重试")
+                    attempt += 1
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    return response_data
             except ClosedResourceError as e:
                 logger.warning(f"Session closed: {e.__repr__()}, attempting to restart session.")
                 await self.cleanup()
@@ -225,7 +233,15 @@ class MCPClient:
             try:
                 logger.info(f"执行工具: {tool_name}...，最多等待6秒")
                 response = await self.session.call_tool(tool_name, arguments, read_timeout_seconds=timedelta(seconds=6))
-                return response.model_dump() if hasattr(response, 'model_dump') else response
+                response_data = response.model_dump() if hasattr(response, 'model_dump') else response
+                if response_data.get("isError"):
+                    # 说明发生了错误，那么进行重试
+                    logger.error("你的MCP的函数没有进行try和except封装，调用工具时，工具出现了异常，等待1秒后重试")
+                    attempt += 1
+                    await asyncio.sleep(delay)
+                    continue
+                else:
+                    return response_data
             except ClosedResourceError as e:
                 logger.warning(f"Session closed: {e.__repr__()}, attempting to restart session.")
                 await self.cleanup()
