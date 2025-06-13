@@ -75,7 +75,7 @@ class A2AClientWrapper:
         }
 
         # 如果支持streaming，就一边收，一边yield
-        response_stream = self.client.send_task_streaming(payload)
+        response_stream = self.client.send_task_streaming_with_retry(payload)
         async for result in response_stream:
             print(f"收到的结果信息是: {result}")
             if result and result.result:
@@ -141,7 +141,7 @@ class A2AClientWrapper:
             }
 
         if self.streaming:
-            response_stream = self.client.send_task_streaming(payload)
+            response_stream = self.client.send_task_streaming_with_retry(payload)
             async for result in response_stream:
                 print(f"stream event => {result.model_dump_json(exclude_none=True)}")
             task_result = await self.client.get_task({"id": task_id})

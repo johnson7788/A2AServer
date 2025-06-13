@@ -19,6 +19,7 @@ from A2AServer.common.A2Atypes import (
     SendTaskStreamingRequest,
     SendTaskStreamingResponse,
 )
+from tenacity import retry, stop_after_attempt, wait_fixed,retry_if_exception_type
 import json
 
 
@@ -35,6 +36,15 @@ class A2AClient:
         request = SendTaskRequest(params=payload)
         return SendTaskResponse(**await self._send_request(request))
 
+
+    @retry(
+        stop=stop_after_attempt(3),  # 最多重试 3 次
+        wait=wait_fixed(2),  # 每次重试间隔 2 秒
+        retry=retry_if_exception_type(A2AClientHTTPError)  # 仅在 HTTP 错误时重试
+    )
+    async def send_task_streaming_with_retry(self, payload: dict):
+        async for chunk in self.send_task_streaming(payload):
+            yield chunk
     async def send_task_streaming(
         self, payload: dict[str, Any]
     ) -> AsyncIterable[SendTaskStreamingResponse]:
