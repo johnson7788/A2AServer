@@ -2,6 +2,8 @@
 
 📘 [中文Readme](./README_ZH.md)
 
+推荐最新A2A结合ADK和MCP实现更复杂任务的方法: https://github.com/johnson7788/MultiAgentPPT
+
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -249,3 +251,6 @@ This project is licensed under the MIT License - Free for all.
 ---
 
 Made with ❤️ by [Johnson Guo](https://github.com/johnson7788)
+
+## WeiChat 微信
+johnsongzc

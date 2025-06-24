@@ -2,6 +2,8 @@
 
 📘 [中文Readme](./README_ZH.md)
 
+推荐最新A2A结合ADK和MCP实现更复杂任务的方法: https://github.com/johnson7788/MultiAgentPPT
+
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -245,9 +247,12 @@ python main.py --port 10006
 ## 🤝 社区与支持
 - **[GitHub Issues](https://github.com/johnson7788/A2AServer/issues)**：报告错误或请求功能。
 - **[GitHub Discussions](https://github.com/johnson7788/A2AServer/discussions)**：提问和分享想法。
-- **[知乎](https://zhuanlan.zhihu.com/p/1904921460507645693)**: 知乎讲解（微信）
+- **[知乎](https://zhuanlan.zhihu.com/p/1904921460507645693)**: 知乎讲解
 
 ## 📄 许可证
 本项目采用MIT许可证 -  Free for all.
 
 Made with ❤️ by [Johnson Guo](https://github.com/johnson7788)
+
+## WeiChat 微信
+johnsongzc
