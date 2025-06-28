@@ -8,3 +8,4 @@ mesop>=1.0.0
 pandas>=2.2.0
 google-genai>=1.9.0
 google-adk==0.3.0
+litellm==1.72.2
