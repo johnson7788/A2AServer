@@ -1,8 +1,8 @@
 # A2A-MCP 服务器框架
 
 📘 [中文Readme](./README_ZH.md)
-
-推荐最新A2A结合ADK和MCP实现更复杂任务的方法: https://github.com/johnson7788/MultiAgentPPT
+由于a2a协议升级，以前的task变成了message，conversation的id从metadata也改成了contextId，所以进行了升级。
+推荐最新A2A结合ADK和MCP实现更复杂任务的方法: https://github.com/johnson7788/MultiAgentPPT/tree/main/backend
 
 <div align="center">
 
