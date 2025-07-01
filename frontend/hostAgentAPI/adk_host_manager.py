@@ -159,7 +159,7 @@ class ADKHostManager(ApplicationManager):
                 timestamp=datetime.datetime.now(datetime.UTC).timestamp(),
             )
         )
-        final_event: GenAIEvent | None = None
+        final_event = None
         # Determine if a task is to be resumed.
         session = self._session_service.get_session(
             app_name='A2A', user_id='test_user', session_id=conversation_id
