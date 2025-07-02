@@ -4,9 +4,26 @@ OpenAI provider implementation.
 
 import os
 import json
+import logging
 from typing import Dict, List, Any, AsyncGenerator, Optional, Union
-
 from openai import AsyncOpenAI, APIError, RateLimitError
+from tenacity import retry, wait_random_exponential, stop_after_attempt, AsyncRetrying
+
+logger = logging.getLogger(__name__)
+@retry(wait=wait_random_exponential(min=1, max=3), stop=stop_after_attempt(3), reraise=True)
+async def _create_chat_completion_with_retry(client: AsyncOpenAI, **kwargs):
+    """
+    Helper function to call client.chat.completions.create with retry logic.
+    """
+    try:
+        response = await client.chat.completions.create(**kwargs)
+        return response
+    except (APIError, RateLimitError) as e:
+        logger.warning(f"API call failed, retrying... Error: {e}")
+        raise # Re-raise to trigger tenacity's retry mechanism
+    except Exception as e:
+        logger.error(f"Unexpected error during API call: {e}")
+        raise # Re-raise for tenacity to handle or propagate
 
 async def generate_with_openai_stream(client: AsyncOpenAI, model_name: str, conversation: List[Dict],
                                     formatted_functions: List[Dict], temperature: Optional[float] = None,
@@ -17,7 +34,9 @@ async def generate_with_openai_stream(client: AsyncOpenAI, model_name: str, conv
             tools = [{"type": "function", "function": f} for f in formatted_functions]
         else:
             tools = None
-        response = await client.chat.completions.create(
+        # 使用封装的重试函数
+        response = await _create_chat_completion_with_retry(
+            client,
             model=model_name,
             messages=conversation,
             temperature=temperature,
